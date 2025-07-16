@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MNIST Neural Network Predictor</title>
+    <style>
+        :root {
+            --bg-main: #000000;
+            --bg-panel: #000000;
+            --canvas-bg: #000000;
+            --canvas-border: #222222;
+            --text-main: #eaeaf2;
+            --text-secondary: #7a7a8c;
+            --highlight: #3a5ccc;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+        body.dark {
+            --bg-main: #000000;
+            --bg-panel: #000000;
+            --canvas-bg: #000000;
+            --canvas-border: #222222;
+            --text-main: #eaeaf2;
+            --text-secondary: #b0b0c3;
+            --highlight: #6e8efb;
+            --success: #34d399;
+            --warning: #fbbf24;
+            --error: #f87171;
+        }
+        body {
+            display: flex;
+            height: 100vh;
+            margin: 0;
+            background: var(--bg-main);
+            color: var(--text-main);
+            font-family: 'Satoshi', 'Inter', 'Segoe UI', 'Arial', 'Helvetica Neue', Helvetica, system-ui, sans-serif;
+            font-weight: 400;
+            letter-spacing: 0.01em;
+        }
+        #canvas-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-main);
+        }
+        #predict-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-main);
+        }
+        #mnist-canvas {
+            background: var(--canvas-bg);
+            border: 2px solid var(--canvas-border);
+            border-radius: 24px;
+        }
+        #probs {
+            font-size: 1.5em;
+            font-family: inherit;
+            text-align: left;
+            min-width: 220px;
+        }
+        .prob-row {
+            display: flex;
+            align-items: baseline;
+            margin-bottom: 0.18em;
+            letter-spacing: 0.01em;
+            padding: 0.1em 0;
+        }
+        .prob-digit {
+            width: 2.2em;
+            display: inline-block;
+            font-variant-numeric: tabular-nums;
+            font-size: 1em;
+        }
+        .prob-value {
+            min-width: 4em;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            font-size: 0.95em;
+            color: var(--text-secondary);
+        }
+        .prob-row.max {
+            font-size: 1.45em;
+            font-weight: 700;
+            color: var(--highlight);
+            background: none;
+            border: none;
+            box-shadow: none;
+        }
+        #clear-btn {
+            margin-top: 10px;
+            background: var(--bg-panel);
+            color: var(--text-main);
+            border: 1.5px solid var(--canvas-border);
+            border-radius: 2em;
+            font-family: inherit;
+            font-size: 1em;
+            font-weight: 500;
+            padding: 0.4em 1.2em;
+            cursor: pointer;
+            box-shadow: 0 2px 8px #0001;
+            transition: background 0.2s, color 0.2s, border 0.2s;
+        }
+        #clear-btn:hover {
+            background: var(--highlight);
+            color: #fff;
+            border-color: var(--highlight);
+        }
+        #toggle-view-btn:hover {
+            background: var(--highlight);
+            color: #fff;
+            border-color: var(--highlight);
+        }
+        #nn-view {
+            border: 2px solid #ff0;
+            min-height: 520px;
+        }
+        .nn-node, .nn-line {
+            transition: fill 0.3s, stroke 0.3s;
+        }
+        .model-info {
+            background: var(--bg-panel);
+            border: 1px solid var(--canvas-border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            font-size: 0.9em;
+        }
+        .model-info h3 {
+            margin: 0 0 8px 0;
+            color: var(--highlight);
+        }
+        .model-info p {
+            margin: 4px 0;
+            color: var(--text-secondary);
+        }
+        .confidence-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .confidence-high { background: var(--success); }
+        .confidence-medium { background: var(--warning); }
+        .confidence-low { background: var(--error); }
+        .prediction-display {
+            font-size: 3em;
+            font-weight: bold;
+            text-align: center;
+            margin: 16px 0;
+            color: var(--highlight);
+        }
+        .stats-container {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .stat-box {
+            background: var(--bg-panel);
+            border: 1px solid var(--canvas-border);
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+            flex: 1;
+        }
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: var(--highlight);
+        }
+        .stat-label {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container">
+        <div>
+            <canvas id="mnist-canvas" width="280" height="280"></canvas><br>
+            <button id="clear-btn">Clear</button>
+        </div>
+    </div>
+    <div id="predict-container">
+        <div>
+            {% if model_info %}
+            <div class="model-info">
+                <h3>Model Information</h3>
+                <p><strong>Accuracy:</strong> {{ "%.2f"|format(model_info.accuracy * 100) }}%</p>
+                <p><strong>Architecture:</strong> {{ model_info.architecture }}</p>
+                <p><strong>Training Samples:</strong> {{ model_info.n_samples_train }}</p>
+            </div>
+            {% endif %}
+            
+            <div class="stats-container">
+                <!-- Removed prediction and confidence display -->
+            </div>
+            <button id="toggle-view-btn" style="margin-bottom: 16px; background: var(--bg-panel); color: var(--text-main); border: 1.5px solid var(--canvas-border); border-radius: 2em; font-family: inherit; font-size: 1em; font-weight: 500; padding: 0.4em 1.2em; cursor: pointer; box-shadow: 0 2px 8px #0001; transition: background 0.2s, color 0.2s, border 0.2s;">Show Neural Network View</button>
+            <div id="probs-container"><div id="probs">Draw a digit!</div></div>
+            <div id="nn-svg-container" style="margin-top:32px; display:none;"></div>
+        </div>
+    </div>
+    <script src="/static/app.js"></script>
+</body>
+</html> 
